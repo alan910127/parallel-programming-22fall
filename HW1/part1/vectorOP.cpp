@@ -41,12 +41,12 @@ void absVector(float* values, float* output, int N) {
 // needMultiply = isValidPosition && (currentExp < exp);
 inline void updateNeedMultiplyMask(
   __pp_mask& maskNeedMultiply,
-  __pp_vec_int& currentExps,
-  __pp_vec_int& exps,
+  __pp_vec_int& currentExponents,
+  __pp_vec_int& exponents,
   __pp_mask& maskIsValidPosition
 ) {
   maskNeedMultiply = _pp_init_ones(0);
-  _pp_vlt_int(maskNeedMultiply, currentExps, exps, maskIsValidPosition);
+  _pp_vlt_int(maskNeedMultiply, currentExponents, exponents, maskIsValidPosition);
 
 }
 
