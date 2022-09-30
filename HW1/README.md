@@ -7,8 +7,9 @@
 Utilize the mock SIMD library `PPintrin` provided by TAs to implement vector arithmetic operations as follows:
 - [x] `clampExpVector`
     - calculate element-wise exponent, with clamping on a specific value.
-- [ ] `arraySumVector`
+- [?] `arraySumVector`
     - sum up the vector in `O(N / VECTOR_WIDTH + log2(VECTOR_WIDTH))` span.
+    - TODO: fix precision problem when the size of input array grows
 
 ## Part 2: Vectorizing Code with Automatic Vectorization Optimizations
 
