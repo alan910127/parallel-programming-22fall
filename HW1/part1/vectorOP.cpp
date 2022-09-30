@@ -125,6 +125,28 @@ void clampedExpVector(float* values, int* exponents, float* output, int N) {
   }
 }
 
+float sumUpNumbersInVector(__pp_vec_float& vec) {
+  static __pp_mask maskAll = _pp_init_ones();
+  size_t numValidElements = VECTOR_WIDTH;
+  __pp_vec_float result, store;
+
+  _pp_vmove_float(result, vec, maskAll);
+
+  while (numValidElements > 1) {
+    // store[i,i+1] = result[i] + result[i+1];
+    _pp_hadd_float(store, result);
+
+    // result[:numValidElements/2] = store[0:numValidElements:2];
+    // result[numValidElements/2:] = store[1:numValidElements:2];
+    _pp_interleave_float(result, store);
+
+    // only the first half is valid now
+    numValidElements /= 2;
+  }
+
+  return result.value[0];
+}
+
 // returns the sum of all elements in values
 // You can assume N is a multiple of VECTOR_WIDTH
 // You can assume VECTOR_WIDTH is a power of 2
@@ -133,9 +155,15 @@ float arraySumVector(float* values, int N) {
   //
   // PP STUDENTS TODO: Implement your vectorized version of arraySumSerial here
   //
+  static __pp_mask maskAll = _pp_init_ones();
+
+  float sum = 0.0;
+  __pp_vec_float vec;
 
   for (int i = 0; i < N; i += VECTOR_WIDTH) {
+    _pp_vload_float(vec, values + i, maskAll);
+    sum += sumUpNumbersInVector(vec);
   }
 
-  return 0.0;
+  return sum;
 }
