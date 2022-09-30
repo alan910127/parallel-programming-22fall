@@ -38,6 +38,61 @@ void absVector(float* values, float* output, int N) {
   }
 }
 
+// needMultiply = isValidPosition && (currentExp < exp);
+inline void updateNeedMultiplyMask(
+  __pp_mask& maskNeedMultiply,
+  __pp_vec_int& currentExps,
+  __pp_vec_int& exps,
+  __pp_mask& maskIsValidPosition
+) {
+  maskNeedMultiply = _pp_init_ones(0);
+  _pp_vlt_int(maskNeedMultiply, currentExps, exps, maskIsValidPosition);
+
+}
+
+// perform element-wise power
+void powerVector(
+  __pp_vec_float& result,
+  __pp_vec_float& bases,
+  __pp_vec_int& exponents,
+  __pp_mask& maskIsValidPosition
+) {
+  static __pp_vec_int ones = _pp_vset_int(1);
+  __pp_vec_int currentExponents;
+  __pp_mask maskNeedMultiply;
+
+  // initialize result to 1
+  _pp_vset_float(result, 1.0f, maskIsValidPosition);
+
+  // set currentExponent to 0
+  _pp_vset_int(currentExponents, 0, maskIsValidPosition);
+
+  updateNeedMultiplyMask(maskNeedMultiply, currentExponents, exponents, maskIsValidPosition);
+
+  while (_pp_cntbits(maskNeedMultiply) > 0) {
+    // result *= base;
+    _pp_vmult_float(result, result, bases, maskNeedMultiply);
+
+    // currentExp++;
+    _pp_vadd_int(currentExponents, currentExponents, ones, maskNeedMultiply);
+
+    updateNeedMultiplyMask(maskNeedMultiply, currentExponents, exponents, maskIsValidPosition);
+  }
+}
+
+// clamp the element in result on maxValue
+void clampVector(
+  __pp_vec_float& result,
+  float maxValue,
+  __pp_mask& maskIsValidPosition
+) {
+  static __pp_vec_float vecMaxValue = _pp_vset_float(maxValue);
+  __pp_mask maskNeedClamp = _pp_init_ones(0);
+
+  _pp_vgt_float(maskNeedClamp, result, vecMaxValue, maskIsValidPosition);
+  _pp_vset_float(result, maxValue, maskNeedClamp);
+}
+
 #define MAX_VALUE 9.999999f
 
 void clampedExpVector(float* values, int* exponents, float* output, int N) {
@@ -50,10 +105,8 @@ void clampedExpVector(float* values, int* exponents, float* output, int N) {
   //
 
   __pp_vec_float bases, result;
-  __pp_vec_float maxValue = _pp_vset_float(MAX_VALUE);
-  __pp_vec_int exps, currentExps;
-  __pp_vec_int ones = _pp_vset_int(1);
-  __pp_mask maskIsValidPosition, maskNeedMultiply, maskNeedClamp;
+  __pp_vec_int exps;
+  __pp_mask maskIsValidPosition;
 
   for (int i = 0; i < N; i += VECTOR_WIDTH) {
     // create a mask of valid positions
@@ -63,31 +116,9 @@ void clampedExpVector(float* values, int* exponents, float* output, int N) {
     // load valid data
     _pp_vload_float(bases, values + i, maskIsValidPosition);
     _pp_vload_int(exps, exponents + i, maskIsValidPosition);
-    _pp_vset_float(result, 1.0f, maskIsValidPosition);
 
-    // set currentExp to 0
-    _pp_vset_int(currentExps, 0, maskIsValidPosition);
-
-    // needMultiply = isValidPosition && (currentExp < exp);
-    maskNeedMultiply = _pp_init_ones(0);
-    _pp_vlt_int(maskNeedMultiply, currentExps, exps, maskIsValidPosition);
-
-    while (_pp_cntbits(maskNeedMultiply) > 0) {
-      // result *= base;
-      _pp_vmult_float(result, result, bases, maskNeedMultiply);
-
-      // currentExp++;
-      _pp_vadd_int(currentExps, currentExps, ones, maskNeedMultiply);
-
-      // recalculate needMultiply
-      maskNeedMultiply = _pp_init_ones(0);
-      _pp_vlt_int(maskNeedMultiply, currentExps, exps, maskIsValidPosition);
-    }
-
-    // clamp at MAX_VALUE
-    maskNeedClamp = _pp_init_ones(0);
-    _pp_vgt_float(maskNeedClamp, result, maxValue, maskIsValidPosition);
-    _pp_vset_float(result, MAX_VALUE, maskNeedClamp);
+    powerVector(result, bases, exps, maskIsValidPosition);
+    clampVector(result, MAX_VALUE, maskIsValidPosition);
 
     // store back computed results
     _pp_vstore_float(output + i, result, maskIsValidPosition);
