@@ -3,14 +3,13 @@
 
 #include "CycleTimer.h"
 
-typedef struct
-{
+typedef struct {
     float x0, x1;
     float y0, y1;
     unsigned int width;
     unsigned int height;
     int maxIterations;
-    int *output;
+    int* output;
     int threadId;
     int numThreads;
 } WorkerArgs;
@@ -26,8 +25,7 @@ extern void mandelbrotSerial(
 // workerThreadStart --
 //
 // Thread entrypoint.
-void workerThreadStart(WorkerArgs *const args)
-{
+void workerThreadStart(WorkerArgs* const args) {
 
     // TODO FOR PP STUDENTS: Implement the body of the worker
     // thread here. Each thread could make a call to mandelbrotSerial()
@@ -38,6 +36,23 @@ void workerThreadStart(WorkerArgs *const args)
     // modify it to pursue a better performance.
 
     printf("Hello world from thread %d\n", args->threadId);
+
+    // FIXME: Speedup in three or more threads are not good
+
+    int numRowsInBlock = args->height / args->numThreads;
+    int numExtraRows = args->height % args->numThreads;
+
+    bool shouldDoOneMoreRow = args->threadId < numExtraRows;
+
+    int startRow = args->threadId * numRowsInBlock + std::min(args->threadId, numExtraRows);
+    int numRows = numRowsInBlock + (shouldDoOneMoreRow ? 1 : 0);
+
+    mandelbrotSerial(
+        args->x0, args->y0, args->x1, args->y1,
+        args->width, args->height,
+        startRow, numRows,
+        args->maxIterations, args->output
+    );
 }
 
 //
@@ -49,12 +64,10 @@ void mandelbrotThread(
     int numThreads,
     float x0, float y0, float x1, float y1,
     int width, int height,
-    int maxIterations, int output[])
-{
+    int maxIterations, int output[]) {
     static constexpr int MAX_THREADS = 32;
 
-    if (numThreads > MAX_THREADS)
-    {
+    if (numThreads > MAX_THREADS) {
         fprintf(stderr, "Error: Max allowed threads is %d\n", MAX_THREADS);
         exit(1);
     }
@@ -63,8 +76,7 @@ void mandelbrotThread(
     std::thread workers[MAX_THREADS];
     WorkerArgs args[MAX_THREADS];
 
-    for (int i = 0; i < numThreads; i++)
-    {
+    for (int i = 0; i < numThreads; i++) {
         // TODO FOR PP STUDENTS: You may or may not wish to modify
         // the per-thread arguments here.  The code below copies the
         // same arguments for each thread
@@ -84,16 +96,14 @@ void mandelbrotThread(
     // Spawn the worker threads.  Note that only numThreads-1 std::threads
     // are created and the main application thread is used as a worker
     // as well.
-    for (int i = 1; i < numThreads; i++)
-    {
+    for (int i = 1; i < numThreads; i++) {
         workers[i] = std::thread(workerThreadStart, &args[i]);
     }
 
     workerThreadStart(&args[0]);
 
     // join worker threads
-    for (int i = 1; i < numThreads; i++)
-    {
+    for (int i = 1; i < numThreads; i++) {
         workers[i].join();
     }
 }
