@@ -35,9 +35,7 @@ void workerThreadStart(WorkerArgs* const args) {
     // Of course, you can copy mandelbrotSerial() to this file and 
     // modify it to pursue a better performance.
 
-    printf("Hello world from thread %d\n", args->threadId);
-
-    // FIXME: Speedup in three or more threads are not good
+    double startTime = CycleTimer::currentSeconds();
 
     int numRowsInBlock = args->height / args->numThreads;
     int numExtraRows = args->height % args->numThreads;
@@ -53,6 +51,9 @@ void workerThreadStart(WorkerArgs* const args) {
         startRow, numRows,
         args->maxIterations, args->output
     );
+
+    double endTime = CycleTimer::currentSeconds();
+    printf("[Thread%d]:\t\t[%.3lf] ms\n", args->threadId, (endTime - startTime) * 1000);
 }
 
 //
