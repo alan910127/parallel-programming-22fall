@@ -10,8 +10,8 @@
 
 ## Part 2: Parallel Fractal Generation using `std::thread`
 
-- [ ] Correctness
-- [ ] Performance
-- [ ] [Report](https://hackmd.io/@alanlin/pp-f22-hw2)
-  - [ ] Maximum Time Limit `T=0.375s`
+- [x] Correctness
+- [x] Performance: Run `./mandelbrot -t 3` and `./mandelbrot -t 4` (consider only the time of `[mandel thread]`)
+  - [x] Maximum Time Limit `T=0.375s`
   - [ ] Competitiveness `T=0.28s`
+- [x] [Report](https://hackmd.io/@alanlin/pp-f22-hw2)

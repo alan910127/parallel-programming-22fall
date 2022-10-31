@@ -3,9 +3,16 @@
 
 #include "CycleTimer.h"
 
+// #pragma GCC optimize("Ofast")
+// #pragma GCC optimize("fast-math")
+
+// ^^ Wrong Answer ^^ // vv No Speedup on Workstation vv
+
+// #pragma GCC optimize("unroll-loops")
+
 typedef struct {
-    float x0, x1;
-    float y0, y1;
+    float x0, y0;
+    float dx, dy;
     unsigned int width;
     unsigned int height;
     int maxIterations;
@@ -31,13 +38,13 @@ static inline int mandel(float c_re, float c_im, int count) {
 }
 
 void mandelbrotGapped(
-    float x0, float y0, float x1, float y1,
+    float x0, float y0, float dx, float dy,
     int width, int height,
     int startRow, int totalRows, int jumpGap,
     int maxIterations,
     int output[]) {
-    float dx = (x1 - x0) / width;
-    float dy = (y1 - y0) / height;
+    // float dx = (x1 - x0) / width;
+    // float dy = (y1 - y0) / height;
 
     for (int j = startRow; j < totalRows; j += jumpGap) {
         for (int i = 0; i < width; ++i) {
@@ -64,17 +71,21 @@ void workerThreadStart(WorkerArgs* const args) {
     // Of course, you can copy mandelbrotSerial() to this file and 
     // modify it to pursue a better performance.
 
+#ifdef PERF
     double startTime = CycleTimer::currentSeconds();
+#endif
 
     mandelbrotGapped(
-        args->x0, args->y0, args->x1, args->y1,
+        args->x0, args->y0, args->dx, args->dy,
         args->width, args->height,
         args->threadId, args->height, args->numThreads,
         args->maxIterations, args->output
     );
 
+#ifdef PERF
     double endTime = CycleTimer::currentSeconds();
     printf("[Thread%d]:\t\t[%.3lf] ms\n", args->threadId, (endTime - startTime) * 1000);
+#endif
 }
 
 //
@@ -98,14 +109,17 @@ void mandelbrotThread(
     std::thread workers[MAX_THREADS];
     WorkerArgs args[MAX_THREADS];
 
+    float dx = (x1 - x0) / width;
+    float dy = (y1 - y0) / height;
+
     for (int i = 0; i < numThreads; i++) {
         // TODO FOR PP STUDENTS: You may or may not wish to modify
         // the per-thread arguments here.  The code below copies the
         // same arguments for each thread
         args[i].x0 = x0;
         args[i].y0 = y0;
-        args[i].x1 = x1;
-        args[i].y1 = y1;
+        args[i].dx = dx;
+        args[i].dy = dy;
         args[i].width = width;
         args[i].height = height;
         args[i].maxIterations = maxIterations;
