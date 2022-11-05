@@ -3,13 +3,6 @@
 
 #include "CycleTimer.h"
 
-// #pragma GCC optimize("Ofast")
-// #pragma GCC optimize("fast-math")
-
-// ^^ Wrong Answer ^^ // vv No Speedup on Workstation vv
-
-// #pragma GCC optimize("unroll-loops")
-
 typedef struct {
     float x0, y0;
     float dx, dy;
@@ -23,6 +16,8 @@ typedef struct {
 
 // Cannot use extern to link since it's declared as static inline and not in a header file
 static inline int mandel(float c_re, float c_im, int count) {
+    if (c_re * c_re + c_im * c_im <= 1.f / 16) return 256;
+
     float z_re = c_re, z_im = c_im;
     int i;
     for (i = 0; i < count; ++i) {
@@ -43,8 +38,6 @@ void mandelbrotGapped(
     int startRow, int totalRows, int jumpGap,
     int maxIterations,
     int output[]) {
-    // float dx = (x1 - x0) / width;
-    // float dy = (y1 - y0) / height;
 
     for (int j = startRow; j < totalRows; j += jumpGap) {
         for (int i = 0; i < width; ++i) {
