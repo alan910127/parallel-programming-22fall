@@ -1,11 +1,11 @@
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 
+#include "cg_impl.h"
 #include "globals.h"
 #include "randdp.h"
 #include "timers.h"
-#include "cg_impl.h"
 
 void init(double* zeta);
 void iterate(double* zeta, int* it);
@@ -17,7 +17,7 @@ int main(int argc, char* argv[]) {
 
   double t, t_total;
 
-  //char Class;
+  // char Class;
   logical verified;
   double zeta_verify_value, epsilon, err;
 
@@ -47,7 +47,7 @@ int main(int argc, char* argv[]) {
   //---------------------------------------------------------------------
   for (it = 1; it <= 1; it++) {
     iterate(&zeta, &it);
-  } // end of do one iteration untimed
+  }  // end of do one iteration untimed
 
   //---------------------------------------------------------------------
   // set starting vector to (1, 1, .... 1)
@@ -72,7 +72,7 @@ int main(int argc, char* argv[]) {
   //---------------------------------------------------------------------
   for (it = 1; it <= NITER; it++) {
     iterate(&zeta, &it);
-  } // end of main iter inv pow meth
+  }  // end of main iter inv pow meth
 
   timer_stop(T_bench);
 
@@ -92,8 +92,7 @@ int main(int argc, char* argv[]) {
     printf(" VERIFICATION SUCCESSFUL\n");
     printf(" Zeta is    %20.13E\n", zeta);
     printf(" Error is   %20.13E\n", err);
-  }
-  else {
+  } else {
     verified = false;
     printf(" VERIFICATION FAILED\n");
     printf(" Zeta                %20.13E\n", zeta);

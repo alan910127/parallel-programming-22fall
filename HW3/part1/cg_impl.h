@@ -1,7 +1,7 @@
 #pragma once
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 
 #include "globals.h"
 #include "randdp.h"
@@ -41,42 +41,14 @@ logical timeron;
 //---------------------------------------------------------------------
 
 //---------------------------------------------------------------------
-void conj_grad(int colidx[],
-    int rowstr[],
-    double x[],
-    double z[],
-    double a[],
-    double p[],
-    double q[],
-    double r[],
-    double* rnorm);
-void makea(int n,
-    int nz,
-    double a[],
-    int colidx[],
-    int rowstr[],
-    int firstrow,
-    int lastrow,
-    int firstcol,
-    int lastcol,
-    int arow[],
-    int acol[][NONZER + 1],
-    double aelt[][NONZER + 1],
-    int iv[]);
-void sparse(double a[],
-    int colidx[],
-    int rowstr[],
-    int n,
-    int nz,
-    int nozer,
-    int arow[],
-    int acol[][NONZER + 1],
-    double aelt[][NONZER + 1],
-    int firstrow,
-    int lastrow,
-    int nzloc[],
-    double rcond,
-    double shift);
+void conj_grad(int colidx[], int rowstr[], double x[], double z[], double a[],
+               double p[], double q[], double r[], double* rnorm);
+void makea(int n, int nz, double a[], int colidx[], int rowstr[], int firstrow,
+           int lastrow, int firstcol, int lastcol, int arow[],
+           int acol[][NONZER + 1], double aelt[][NONZER + 1], int iv[]);
+void sparse(double a[], int colidx[], int rowstr[], int n, int nz, int nozer,
+            int arow[], int acol[][NONZER + 1], double aelt[][NONZER + 1],
+            int firstrow, int lastrow, int nzloc[], double rcond, double shift);
 void sprnvc(int n, int nz, int nn1, double v[], int iv[]);
 int icnvrt(double x, int ipwr2);
 void vecset(int n, double v[], int iv[], int* nzv, int i, double val);
