@@ -5,6 +5,7 @@
 
 #include <cmath>
 #include <utility>
+#include <vector>
 
 #include "../common/CycleTimer.h"
 #include "../common/graph.h"
@@ -54,4 +55,45 @@ void pageRank(Graph g, double* solution, double damping, double convergence) {
      }
 
    */
+
+  std::vector<double> score_new(numNodes);
+  std::vector<Vertex> isolated;
+  for (int vi = 0; vi < numNodes; ++vi) {
+    if (outgoing_size(g, vi) == 0) isolated.push_back(vi);
+  }
+
+  while (true) {
+    // sum over all nodes vj reachable from incoming edges
+    for (int vi = 0; vi < numNodes; ++vi) {
+      auto incoming_edge_start = incoming_begin(g, vi);
+      auto incoming_edge_end = incoming_end(g, vi);
+      double sum_reachable = 0.0;
+      for (auto vj = incoming_edge_start; vj != incoming_edge_end; ++vj) {
+        sum_reachable = sum_reachable + solution[*vj] / outgoing_size(g, *vj);
+      }
+      score_new[vi] = sum_reachable;
+    }
+
+    for (int vi = 0; vi < numNodes; ++vi) {
+      score_new[vi] = (damping * score_new[vi]) + (1.0 - damping) / numNodes;
+    }
+
+    // sum over all nodes v in graph with no outgoing edges
+    double sum_isolated = 0.0;
+    for (auto& vj : isolated) {
+      sum_isolated = sum_isolated + damping * solution[vj] / numNodes;
+    }
+
+    for (int vi = 0; vi < numNodes; ++vi) {
+      score_new[vi] = score_new[vi] + sum_isolated;
+    }
+
+    double global_diff = 0.0;
+    for (int vi = 0; vi < numNodes; ++vi) {
+      global_diff = global_diff + abs(score_new[vi] - solution[vi]);
+      solution[vi] = score_new[vi];
+    }
+
+    if (global_diff < convergence) break;
+  }
 }
