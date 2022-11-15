@@ -7,11 +7,11 @@
 
 #include <assert.h>
 
- /* Unlike typical header files, "contracts.h" may be
-  * included multiple times, with and without DEBUG defined.
-  * For this to succeed we first undefine the macros in
-  * question in order to avoid a redefinition warning.
-  */
+/* Unlike typical header files, "contracts.h" may be
+ * included multiple times, with and without DEBUG defined.
+ * For this to succeed we first undefine the macros in
+ * question in order to avoid a redefinition warning.
+ */
 
 #undef ASSERT
 #undef REQUIRES

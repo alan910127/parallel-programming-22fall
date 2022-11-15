@@ -7,21 +7,20 @@
 #else
 #include <mach/mach.h>
 #include <mach/mach_time.h>
-#endif // __x86_64__ or not
+#endif  // __x86_64__ or not
 
-#include <stdio.h>  // fprintf
-#include <stdlib.h> // exit
+#include <stdio.h>   // fprintf
+#include <stdlib.h>  // exit
 
 #elif _WIN32
-#  include <windows.h>
-#  include <time.h>
+#include <time.h>
+#include <windows.h>
 #else
-#  include <stdio.h>
-#  include <stdlib.h>
-#  include <string.h>
-#  include <sys/time.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
 #endif
-
 
 // This uses the cycle counter of the processor.  Different
 // processors in the system will have different values for this.  If
@@ -35,7 +34,7 @@
 // scaling) or if you are in a heterogenous environment, you will
 // likely get spurious results.
 class CycleTimer {
-public:
+ public:
   typedef unsigned long long SysClock;
 
   //////////
@@ -50,17 +49,18 @@ public:
     return qwTime.QuadPart;
 #elif defined(__x86_64__)
     unsigned int a, d;
-    asm volatile("rdtsc" : "=a" (a), "=d" (d));
+    asm volatile("rdtsc" : "=a"(a), "=d"(d));
     return static_cast<unsigned long long>(a) |
-      (static_cast<unsigned long long>(d) << 32);
-#elif defined(__ARM_NEON__) && 0 // mrc requires superuser.
+           (static_cast<unsigned long long>(d) << 32);
+#elif defined(__ARM_NEON__) && 0  // mrc requires superuser.
     unsigned int val;
     asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r"(val));
     return val;
 #else
     timespec spec;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &spec);
-    return CycleTimer::SysClock(static_cast<float>(spec.tv_sec) * 1e9 + static_cast<float>(spec.tv_nsec));
+    return CycleTimer::SysClock(static_cast<float>(spec.tv_sec) * 1e9 +
+                                static_cast<float>(spec.tv_nsec));
 #endif
   }
 
@@ -68,15 +68,11 @@ public:
   // Return the current CPU time, in terms of seconds.
   // This is slower than currentTicks().  Time zero is at
   // some arbitrary point in the past.
-  static double currentSeconds() {
-    return currentTicks() * secondsPerTick();
-  }
+  static double currentSeconds() { return currentTicks() * secondsPerTick(); }
 
   //////////
   // Return the conversion from seconds to ticks.
-  static double ticksPerSecond() {
-    return 1.0 / secondsPerTick();
-  }
+  static double ticksPerSecond() { return 1.0 / secondsPerTick(); }
 
   static const char* tickUnits() {
 #if defined(__APPLE__) && !defined(__x86_64__)
@@ -84,7 +80,7 @@ public:
 #elif defined(__WIN32__) || defined(__x86_64__)
     return "cycles";
 #else
-    return "ns"; // clock_gettime
+    return "ns";  // clock_gettime
 #endif
   }
 
@@ -96,7 +92,7 @@ public:
     if (initialized) return secondsPerTick_val;
 #if defined(__APPLE__)
 #ifdef __x86_64__
-    int args[] = { CTL_HW, HW_CPU_FREQ };
+    int args[] = {CTL_HW, HW_CPU_FREQ};
     unsigned int Hz;
     size_t len = sizeof(Hz);
     if (sysctl(args, 2, &Hz, &len, NULL, 0) != 0) {
@@ -110,8 +106,8 @@ public:
 
     // Scales to nanoseconds without 1e-9f
     secondsPerTick_val = (1e-9 * static_cast<double>(time_info.numer)) /
-      static_cast<double>(time_info.denom);
-#endif // x86_64 or not
+                         static_cast<double>(time_info.denom);
+#endif  // x86_64 or not
 #elif defined(_WIN32)
     LARGE_INTEGER qwTicksPerSec;
     QueryPerformanceFrequency(&qwTicksPerSec);
@@ -120,7 +116,8 @@ public:
     FILE* fp = fopen("/proc/cpuinfo", "r");
     char input[1024];
     if (!fp) {
-      fprintf(stderr, "CycleTimer::resetScale failed: couldn't find /proc/cpuinfo.");
+      fprintf(stderr,
+              "CycleTimer::resetScale failed: couldn't find /proc/cpuinfo.");
       exit(-1);
     }
     // In case we don't find it, e.g. on the N900
@@ -138,23 +135,21 @@ public:
           if (GHz_str) {
             *GHz_str = '\0';
             if (1 == sscanf(after_at, "%f", &GHz)) {
-              //printf("GHz = %f\n", GHz);
+              // printf("GHz = %f\n", GHz);
               secondsPerTick_val = 1e-9f / GHz;
               break;
             }
-          }
-          else if (MHz_str) {
+          } else if (MHz_str) {
             *MHz_str = '\0';
             if (1 == sscanf(after_at, "%f", &MHz)) {
-              //printf("MHz = %f\n", MHz);
+              // printf("MHz = %f\n", MHz);
               secondsPerTick_val = 1e-6f / GHz;
               break;
             }
           }
         }
-      }
-      else if (1 == sscanf(input, "cpu MHz : %f", &MHz)) {
-        //printf("MHz = %f\n", MHz);
+      } else if (1 == sscanf(input, "cpu MHz : %f", &MHz)) {
+        // printf("MHz = %f\n", MHz);
         secondsPerTick_val = 1e-6f / MHz;
         break;
       }
@@ -168,12 +163,10 @@ public:
 
   //////////
   // Return the conversion from ticks to milliseconds.
-  static double msPerTick() {
-    return secondsPerTick() * 1000.0;
-  }
+  static double msPerTick() { return secondsPerTick() * 1000.0; }
 
-private:
+ private:
   CycleTimer();
 };
 
-#endif // #ifndef _SYRAH_CYCLE_TIMER_H_
+#endif  // #ifndef _SYRAH_CYCLE_TIMER_H_

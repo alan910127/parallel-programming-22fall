@@ -1,8 +1,9 @@
 #include "page_rank.h"
 
-#include <stdlib.h>
-#include <cmath>
 #include <omp.h>
+#include <stdlib.h>
+
+#include <cmath>
 #include <utility>
 
 #include "../common/CycleTimer.h"
@@ -11,12 +12,11 @@
 // pageRank --
 //
 // g:           graph to process (see common/graph.h)
-// solution:    array of per-vertex vertex scores (length of array is num_nodes(g))
-// damping:     page-rank algorithm's damping parameter
+// solution:    array of per-vertex vertex scores (length of array is
+// num_nodes(g)) damping:     page-rank algorithm's damping parameter
 // convergence: page-rank algorithm's convergence threshold
 //
 void pageRank(Graph g, double* solution, double damping, double convergence) {
-
   // initialize vertex weights to uniform probability. Double
   // precision scores are used to avoid underflow for large graphs
 
@@ -49,8 +49,8 @@ void pageRank(Graph g, double* solution, double damping, double convergence) {
        // compute how much per-node scores have changed
        // quit once algorithm has converged
 
-       global_diff = sum over all nodes vi { abs(score_new[vi] - score_old[vi]) };
-       converged = (global_diff < convergence)
+       global_diff = sum over all nodes vi { abs(score_new[vi] - score_old[vi])
+     }; converged = (global_diff < convergence)
      }
 
    */

@@ -1,22 +1,20 @@
 #ifndef __GRADE_H__
 #define __GRADE_H__
 
+#include <float.h>
+#include <omp.h>
 #include <stdio.h>
-#include <sstream>
-#include <iomanip>
-#include <chrono>
 
+#include <chrono>
+#include <cmath>
+#include <iomanip>
+#include <sstream>
 #include <type_traits>
 #include <utility>
 
-#include <float.h>
-#include <cmath>
-
-#include <omp.h>
-
+#include "contracts.h"
 #include "graph.h"
 #include "graph_internal.h"
-#include "contracts.h"
 
 // Epsilon for approximate float comparisons
 #define EPSILON 0.00000000001
@@ -35,8 +33,7 @@
  */
 
 static void sep(std::ostream& out, char separator = '-', int length = 78) {
-  for (int i = 0; i < length; i++)
-    out << separator;
+  for (int i = 0; i < length; i++) out << separator;
   out << std::endl;
 }
 
@@ -58,8 +55,8 @@ template <class T>
 bool compareArrays(Graph graph, T* ref, T* stu) {
   for (int i = 0; i < graph->num_nodes; i++) {
     if (ref[i] != stu[i]) {
-      std::cerr << "*** Results disagree at " << i << " expected "
-        << ref[i] << " found " << stu[i] << std::endl;
+      std::cerr << "*** Results disagree at " << i << " expected " << ref[i]
+                << " found " << stu[i] << std::endl;
       return false;
     }
   }
@@ -70,8 +67,8 @@ template <class T>
 bool compareApprox(Graph graph, T* ref, T* stu) {
   for (int i = 0; i < graph->num_nodes; i++) {
     if (fabs(ref[i] - stu[i]) > EPSILON) {
-      std::cerr << "*** Results disagree at " << i << " expected "
-        << ref[i] << " found " << stu[i] << std::endl;
+      std::cerr << "*** Results disagree at " << i << " expected " << ref[i]
+                << " found " << stu[i] << std::endl;
       return false;
     }
   }
@@ -111,26 +108,25 @@ bool compareArraysAndRadiiEst(Graph graph, T* ref, T* stu) {
   bool isCorrect = true;
   for (int i = 0; i < graph->num_nodes; i++) {
     if (ref[i] != stu[i]) {
-      std::cerr << "*** Results disagree at " << i << " expected "
-        << ref[i] << " found " << stu[i] << std::endl;
+      std::cerr << "*** Results disagree at " << i << " expected " << ref[i]
+                << " found " << stu[i] << std::endl;
       isCorrect = false;
     }
   }
   int stuMaxVal = -1;
   int refMaxVal = -1;
-#pragma omp parallel for schedule(dynamic, 512) reduction(max: stuMaxVal)
+#pragma omp parallel for schedule(dynamic, 512) reduction(max : stuMaxVal)
   for (int i = 0; i < graph->num_nodes; i++) {
-    if (stu[i] > stuMaxVal)
-      stuMaxVal = stu[i];
+    if (stu[i] > stuMaxVal) stuMaxVal = stu[i];
   }
-#pragma omp parallel for schedule(dynamic, 512) reduction(max: refMaxVal)
+#pragma omp parallel for schedule(dynamic, 512) reduction(max : refMaxVal)
   for (int i = 0; i < graph->num_nodes; i++) {
-    if (ref[i] > refMaxVal)
-      refMaxVal = ref[i];
+    if (ref[i] > refMaxVal) refMaxVal = ref[i];
   }
 
   if (refMaxVal != stuMaxVal) {
-    std::cerr << "*** Radius estimates differ. Expected: " << refMaxVal << " Got: " << stuMaxVal << std::endl;
+    std::cerr << "*** Radius estimates differ. Expected: " << refMaxVal
+              << " Got: " << stuMaxVal << std::endl;
     isCorrect = false;
   }
   return isCorrect;
