@@ -86,6 +86,31 @@ void bfs_top_down(Graph graph, solution* sol) {
   }
 }
 
+int bottom_up_step(Graph g, int* distances, int previous_level) {
+  int current_level_count = 0;
+
+  for (int node = 0; node < g->num_nodes; ++node) {
+    if (distances[node] != NOT_VISITED_MARKER) continue;
+
+    int start_edge = g->incoming_starts[node];
+    int end_edge = (node == g->num_nodes - 1) ? g->num_edges
+                                              : g->incoming_starts[node + 1];
+
+    for (int neighbor = start_edge; neighbor < end_edge; neighbor++) {
+      int incoming = g->incoming_edges[neighbor];
+
+      if (distances[incoming] != previous_level) continue;
+
+      distances[node] = previous_level + 1;
+      current_level_count++;
+      break;
+      // if an ancestor is found, do the step for another vertex
+    }
+  }
+
+  return current_level_count;
+}
+
 void bfs_bottom_up(Graph graph, solution* sol) {
   // For PP students:
   //
@@ -98,6 +123,20 @@ void bfs_bottom_up(Graph graph, solution* sol) {
   // As was done in the top-down case, you may wish to organize your
   // code by creating subroutine bottom_up_step() that is called in
   // each step of the BFS process.
+
+  int current_level = 0;
+  int next_level_count = 1;
+
+  for (int i = 0; i < graph->num_nodes; ++i) {
+    sol->distances[i] = NOT_VISITED_MARKER;
+  }
+
+  sol->distances[ROOT_NODE_ID] = 0;
+
+  while (next_level_count != 0) {
+    next_level_count = bottom_up_step(graph, sol->distances, current_level);
+    ++current_level;
+  }
 }
 
 void bfs_hybrid(Graph graph, solution* sol) {
