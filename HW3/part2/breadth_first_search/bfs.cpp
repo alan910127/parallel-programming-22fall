@@ -24,10 +24,14 @@ void vertex_set_init(vertex_set* list, int count) {
 // Take one step of "top-down" BFS.  For each vertex on the frontier,
 // follow all outgoing edges, and add all neighboring vertices to the
 // new_frontier.
-void top_down_step(Graph g, vertex_set* frontier, vertex_set* new_frontier,
-                   int* distances) {
-  for (int i = 0; i < frontier->count; i++) {
-    int node = frontier->vertices[i];
+int top_down_step(Graph g, int* distances, int current_level) {
+  int next_level_count = 0;
+
+  // process `current_level` in parallel
+#pragma omp parallel for reduction(+ : next_level_count)
+  for (int node = 0; node < g->num_nodes; node++) {
+    // only consider the vertices that are on `current_level`
+    if (distances[node] != current_level) continue;
 
     int start_edge = g->outgoing_starts[node];
     int end_edge = (node == g->num_nodes - 1) ? g->num_edges
@@ -37,13 +41,14 @@ void top_down_step(Graph g, vertex_set* frontier, vertex_set* new_frontier,
     for (int neighbor = start_edge; neighbor < end_edge; neighbor++) {
       int outgoing = g->outgoing_edges[neighbor];
 
-      if (distances[outgoing] == NOT_VISITED_MARKER) {
-        distances[outgoing] = distances[node] + 1;
-        int index = new_frontier->count++;
-        new_frontier->vertices[index] = outgoing;
-      }
+      if (distances[outgoing] != NOT_VISITED_MARKER) continue;
+
+      distances[outgoing] = distances[node] + 1;
+      next_level_count++;
     }
   }
+
+  return next_level_count;
 }
 
 // Implements top-down BFS.
@@ -51,40 +56,33 @@ void top_down_step(Graph g, vertex_set* frontier, vertex_set* new_frontier,
 // Result of execution is that, for each node in the graph, the
 // distance to the root is stored in sol.distances.
 void bfs_top_down(Graph graph, solution* sol) {
-  vertex_set list1;
-  vertex_set list2;
-  vertex_set_init(&list1, graph->num_nodes);
-  vertex_set_init(&list2, graph->num_nodes);
-
-  vertex_set* frontier = &list1;
-  vertex_set* new_frontier = &list2;
+  // explore the graph level-by-level, instead of vertex-by-vertex
+  int current_level = 0;
+  int next_level_count = 1;  // only ROOT is on level 0
 
   // initialize all nodes to NOT_VISITED
-  for (int i = 0; i < graph->num_nodes; i++)
+#pragma omp parallel for schedule(static, 16)
+  for (int i = 0; i < graph->num_nodes; i++) {
     sol->distances[i] = NOT_VISITED_MARKER;
+  }
 
-  // setup frontier with the root node
-  frontier->vertices[frontier->count++] = ROOT_NODE_ID;
   sol->distances[ROOT_NODE_ID] = 0;
 
-  while (frontier->count != 0) {
+  while (next_level_count != 0) {
 #ifdef VERBOSE
     double start_time = CycleTimer::currentSeconds();
 #endif
 
-    vertex_set_clear(new_frontier);
-
-    top_down_step(graph, frontier, new_frontier, sol->distances);
+    next_level_count = top_down_step(graph, sol->distances, current_level);
 
 #ifdef VERBOSE
     double end_time = CycleTimer::currentSeconds();
-    printf("frontier=%-10d %.4f sec\n", frontier->count, end_time - start_time);
+    printf("frontier=%-10d %.4f sec\n", next_level_count,
+           end_time - start_time);
 #endif
 
-    // swap pointers
-    vertex_set* tmp = frontier;
-    frontier = new_frontier;
-    new_frontier = tmp;
+    // go on to the next level
+    ++current_level;
   }
 }
 
