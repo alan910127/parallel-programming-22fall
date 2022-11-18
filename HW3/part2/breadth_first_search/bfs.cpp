@@ -22,11 +22,13 @@ void vertex_set_init(vertex_set* list, int count) {
 }
 
 void init_distance(int* distances, int size) {
+  // mark all nodes as unvisited
 #pragma omp parallel for schedule(static, 16)
   for (int i = 0; i < size; ++i) {
     distances[i] = NOT_VISITED_MARKER;
   }
 
+  // d(v, v) = 0
   distances[ROOT_NODE_ID] = 0;
 }
 
@@ -38,22 +40,22 @@ int top_down_step(Graph g, int* distances, int current_level) {
 
   // process `current_level` in parallel
 #pragma omp parallel for reduction(+ : next_level_count)
-  for (int node = 0; node < g->num_nodes; node++) {
+  for (int i = 0; i < g->num_nodes; i++) {
     // only consider the vertices that are on `current_level`
-    if (distances[node] != current_level) continue;
+    if (distances[i] == current_level) {
+      int start_edge = g->outgoing_starts[i];
+      int end_edge =
+          (i == g->num_nodes - 1) ? g->num_edges : g->outgoing_starts[i + 1];
 
-    int start_edge = g->outgoing_starts[node];
-    int end_edge = (node == g->num_nodes - 1) ? g->num_edges
-                                              : g->outgoing_starts[node + 1];
+      // attempt to add all neighbors to the new frontier
+      for (int neighbor = start_edge; neighbor < end_edge; neighbor++) {
+        int outgoing = g->outgoing_edges[neighbor];
 
-    // attempt to add all neighbors to the new frontier
-    for (int neighbor = start_edge; neighbor < end_edge; neighbor++) {
-      int outgoing = g->outgoing_edges[neighbor];
-
-      if (distances[outgoing] != NOT_VISITED_MARKER) continue;
-
-      distances[outgoing] = distances[node] + 1;
-      next_level_count++;
+        if (distances[outgoing] == NOT_VISITED_MARKER) {
+          distances[outgoing] = distances[i] + 1;
+          next_level_count++;
+        }
+      }
     }
   }
 
@@ -69,10 +71,8 @@ void bfs_top_down(Graph graph, solution* sol) {
 
   init_distance(sol->distances, graph->num_nodes);
 
-  int current_level = 0;
-  int next_level_count = 1;  // ROOT is on level 0
-
-  while (next_level_count > 0) {
+  for (int next_level_count = 1, current_level = 0; next_level_count > 0;
+       ++current_level) {
 #ifdef VERBOSE
     double start_time = CycleTimer::currentSeconds();
 #endif
@@ -84,35 +84,33 @@ void bfs_top_down(Graph graph, solution* sol) {
     printf("frontier=%-10d %.4f sec\n", next_level_count,
            end_time - start_time);
 #endif
-
-    // go on to the next level
-    ++current_level;
   }
 }
 
-int bottom_up_step(Graph g, int* distances, int previous_level) {
-  int current_level_count = 0;
+int bottom_up_step(Graph g, int* distances, int current_level) {
+  int next_level_count = 0;
 
-  for (int node = 0; node < g->num_nodes; ++node) {
-    if (distances[node] != NOT_VISITED_MARKER) continue;
+#pragma omp parallel for reduction(+ : next_level_count)
+  for (int i = 0; i < g->num_nodes; ++i) {
+    if (distances[i] == NOT_VISITED_MARKER) {
+      int start_edge = g->incoming_starts[i];
+      int end_edge =
+          (i == g->num_nodes - 1) ? g->num_edges : g->incoming_starts[i + 1];
 
-    int start_edge = g->incoming_starts[node];
-    int end_edge = (node == g->num_nodes - 1) ? g->num_edges
-                                              : g->incoming_starts[node + 1];
+      for (int neighbor = start_edge; neighbor < end_edge; ++neighbor) {
+        int incoming = g->incoming_edges[neighbor];
 
-    for (int neighbor = start_edge; neighbor < end_edge; neighbor++) {
-      int incoming = g->incoming_edges[neighbor];
-
-      if (distances[incoming] != previous_level) continue;
-
-      distances[node] = previous_level + 1;
-      current_level_count++;
-      break;
-      // if an ancestor is found, do the step for another vertex
+        if (distances[incoming] == current_level) {
+          next_level_count++;
+          distances[i] = distances[incoming] + 1;
+          // if an ancestor is found, do the step for another vertex
+          break;
+        }
+      }
     }
   }
 
-  return current_level_count;
+  return next_level_count;
 }
 
 void bfs_bottom_up(Graph graph, solution* sol) {
@@ -130,12 +128,19 @@ void bfs_bottom_up(Graph graph, solution* sol) {
 
   init_distance(sol->distances, graph->num_nodes);
 
-  int current_level = 0;
-  int next_level_count = 1;  // ROOT is on level 0
+  for (int next_level_count = 1, current_level = 0; next_level_count > 0;
+       ++current_level) {
+#ifdef VERBOSE
+    double start_time = CycleTimer::currentSeconds();
+#endif
 
-  while (next_level_count > 0) {
     next_level_count = bottom_up_step(graph, sol->distances, current_level);
-    ++current_level;
+
+#ifdef VERBOSE
+    double end_time = CycleTimer::currentSeconds();
+    printf("frontier=%-10d %.4f sec\n", next_level_count,
+           end_time - start_time);
+#endif
   }
 }
 
@@ -145,8 +150,26 @@ void bfs_hybrid(Graph graph, solution* sol) {
   // You will need to implement the "hybrid" BFS here as
   // described in the handout.
 
+  const int MINIMUM_COUNT_FOR_BOTTOM_UP = 100'000;
+
   init_distance(sol->distances, graph->num_nodes);
 
-  int current_level = 0;
-  int next_level_count = 1;  // ROOT is on level 0
+  for (int next_level_count = 1, current_level = 0; next_level_count > 0;
+       ++current_level) {
+#ifdef VERBOSE
+    double start_time = CycleTimer::currentSeconds();
+#endif
+
+    if (next_level_count < MINIMUM_COUNT_FOR_BOTTOM_UP) {
+      next_level_count = top_down_step(graph, sol->distances, current_level);
+    } else {
+      next_level_count = bottom_up_step(graph, sol->distances, current_level);
+    }
+
+#ifdef VERBOSE
+    double end_time = CycleTimer::currentSeconds();
+    printf("frontier=%-10d %.4f sec\n", next_level_count,
+           end_time - start_time);
+#endif
+  }
 }
