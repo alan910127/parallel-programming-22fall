@@ -21,6 +21,15 @@ void vertex_set_init(vertex_set* list, int count) {
   vertex_set_clear(list);
 }
 
+void init_distance(int* distances, int size) {
+#pragma omp parallel for schedule(static, 16)
+  for (int i = 0; i < size; ++i) {
+    distances[i] = NOT_VISITED_MARKER;
+  }
+
+  distances[ROOT_NODE_ID] = 0;
+}
+
 // Take one step of "top-down" BFS.  For each vertex on the frontier,
 // follow all outgoing edges, and add all neighboring vertices to the
 // new_frontier.
@@ -57,18 +66,13 @@ int top_down_step(Graph g, int* distances, int current_level) {
 // distance to the root is stored in sol.distances.
 void bfs_top_down(Graph graph, solution* sol) {
   // explore the graph level-by-level, instead of vertex-by-vertex
+
+  init_distance(sol->distances, graph->num_nodes);
+
   int current_level = 0;
-  int next_level_count = 1;  // only ROOT is on level 0
+  int next_level_count = 1;  // ROOT is on level 0
 
-  // initialize all nodes to NOT_VISITED
-#pragma omp parallel for schedule(static, 16)
-  for (int i = 0; i < graph->num_nodes; i++) {
-    sol->distances[i] = NOT_VISITED_MARKER;
-  }
-
-  sol->distances[ROOT_NODE_ID] = 0;
-
-  while (next_level_count != 0) {
+  while (next_level_count > 0) {
 #ifdef VERBOSE
     double start_time = CycleTimer::currentSeconds();
 #endif
@@ -124,16 +128,12 @@ void bfs_bottom_up(Graph graph, solution* sol) {
   // code by creating subroutine bottom_up_step() that is called in
   // each step of the BFS process.
 
+  init_distance(sol->distances, graph->num_nodes);
+
   int current_level = 0;
-  int next_level_count = 1;
+  int next_level_count = 1;  // ROOT is on level 0
 
-  for (int i = 0; i < graph->num_nodes; ++i) {
-    sol->distances[i] = NOT_VISITED_MARKER;
-  }
-
-  sol->distances[ROOT_NODE_ID] = 0;
-
-  while (next_level_count != 0) {
+  while (next_level_count > 0) {
     next_level_count = bottom_up_step(graph, sol->distances, current_level);
     ++current_level;
   }
@@ -144,4 +144,9 @@ void bfs_hybrid(Graph graph, solution* sol) {
   //
   // You will need to implement the "hybrid" BFS here as
   // described in the handout.
+
+  init_distance(sol->distances, graph->num_nodes);
+
+  int current_level = 0;
+  int next_level_count = 1;  // ROOT is on level 0
 }
