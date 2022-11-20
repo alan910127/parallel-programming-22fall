@@ -41,7 +41,7 @@ int top_down_step(Graph g, int* distances, int current_level,
   int m_f = 0;
 
   // process `current_level` in parallel
-#pragma omp parallel for reduction(+ : next_level_count, m_f)
+#pragma omp parallel for reduction(+ : next_level_count, m_f) schedule(dynamic, 1024)
   for (int i = 0; i < g->num_nodes; i++) {
     // only consider the vertices that are on `current_level` (i.e. frontier)
     if (distances[i] == current_level) {
@@ -95,7 +95,7 @@ int bottom_up_step(Graph g, int* distances, int current_level,
   int next_level_count = 0;
   int m_u = 0;
 
-#pragma omp parallel for reduction(+ : next_level_count, m_u)
+#pragma omp parallel for reduction(+ : next_level_count, m_u) schedule(dynamic, 1024)
   for (int i = 0; i < g->num_nodes; ++i) {
     if (distances[i] == NOT_VISITED_MARKER) {
       const Vertex* begin = incoming_begin(g, i);
