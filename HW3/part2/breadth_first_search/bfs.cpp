@@ -21,35 +21,37 @@ void vertex_set_init(vertex_set* list, int count) {
   vertex_set_clear(list);
 }
 
-void init_distance(int* distances, int size) {
+static inline void init_distance(int* distances, int size) {
   // mark all nodes as unvisited
 #pragma omp parallel for schedule(static, 16)
   for (int i = 0; i < size; ++i) {
     distances[i] = NOT_VISITED_MARKER;
   }
 
-  // d(v, v) = 0
+  // d(ROOT, ROOT) = 0
   distances[ROOT_NODE_ID] = 0;
 }
 
 // Take one step of "top-down" BFS.  For each vertex on the frontier,
 // follow all outgoing edges, and add all neighboring vertices to the
 // new_frontier.
-int top_down_step(Graph g, int* distances, int current_level) {
+int top_down_step(Graph g, int* distances, int current_level,
+                  int* edges_from_frontier = nullptr) {
   int next_level_count = 0;
+  int m_f = 0;
 
   // process `current_level` in parallel
-#pragma omp parallel for reduction(+ : next_level_count)
+#pragma omp parallel for reduction(+ : next_level_count, m_f)
   for (int i = 0; i < g->num_nodes; i++) {
-    // only consider the vertices that are on `current_level`
+    // only consider the vertices that are on `current_level` (i.e. frontier)
     if (distances[i] == current_level) {
-      int start_edge = g->outgoing_starts[i];
-      int end_edge =
-          (i == g->num_nodes - 1) ? g->num_edges : g->outgoing_starts[i + 1];
+      const Vertex* begin = outgoing_begin(g, i);
+      const Vertex* end = outgoing_end(g, i);
+      m_f += outgoing_size(g, i);
 
       // attempt to add all neighbors to the new frontier
-      for (int neighbor = start_edge; neighbor < end_edge; neighbor++) {
-        int outgoing = g->outgoing_edges[neighbor];
+      for (auto neighbor = begin; neighbor != end; ++neighbor) {
+        int outgoing = *neighbor;
 
         if (distances[outgoing] == NOT_VISITED_MARKER) {
           distances[outgoing] = distances[i] + 1;
@@ -59,6 +61,7 @@ int top_down_step(Graph g, int* distances, int current_level) {
     }
   }
 
+  if (edges_from_frontier != nullptr) *edges_from_frontier = m_f;
   return next_level_count;
 }
 
@@ -87,18 +90,20 @@ void bfs_top_down(Graph graph, solution* sol) {
   }
 }
 
-int bottom_up_step(Graph g, int* distances, int current_level) {
+int bottom_up_step(Graph g, int* distances, int current_level,
+                   int* edges_from_unexplored = nullptr) {
   int next_level_count = 0;
+  int m_u = 0;
 
-#pragma omp parallel for reduction(+ : next_level_count)
+#pragma omp parallel for reduction(+ : next_level_count, m_u)
   for (int i = 0; i < g->num_nodes; ++i) {
     if (distances[i] == NOT_VISITED_MARKER) {
-      int start_edge = g->incoming_starts[i];
-      int end_edge =
-          (i == g->num_nodes - 1) ? g->num_edges : g->incoming_starts[i + 1];
+      const Vertex* begin = incoming_begin(g, i);
+      const Vertex* end = incoming_end(g, i);
+      m_u += incoming_size(g, i);
 
-      for (int neighbor = start_edge; neighbor < end_edge; ++neighbor) {
-        int incoming = g->incoming_edges[neighbor];
+      for (auto neighbor = begin; neighbor != end; ++neighbor) {
+        int incoming = *neighbor;
 
         if (distances[incoming] == current_level) {
           next_level_count++;
@@ -110,6 +115,7 @@ int bottom_up_step(Graph g, int* distances, int current_level) {
     }
   }
 
+  if (edges_from_unexplored != nullptr) *edges_from_unexplored = m_u;
   return next_level_count;
 }
 
@@ -150,7 +156,10 @@ void bfs_hybrid(Graph graph, solution* sol) {
   // You will need to implement the "hybrid" BFS here as
   // described in the handout.
 
-  const int MINIMUM_COUNT_FOR_BOTTOM_UP = 100'000;
+  static constexpr int ALPHA = 14;
+  static constexpr int BETA = 24;
+
+  int m_f = 0, m_u = 0;
 
   init_distance(sol->distances, graph->num_nodes);
 
@@ -160,10 +169,16 @@ void bfs_hybrid(Graph graph, solution* sol) {
     double start_time = CycleTimer::currentSeconds();
 #endif
 
-    if (next_level_count < MINIMUM_COUNT_FOR_BOTTOM_UP) {
-      next_level_count = top_down_step(graph, sol->distances, current_level);
+    bool change_tb = m_f * ALPHA > m_u;
+    bool change_bt = next_level_count * BETA < graph->num_nodes;
+
+    if (change_tb && !change_bt) {
+      next_level_count =
+          bottom_up_step(graph, sol->distances, current_level, &m_u);
+
     } else {
-      next_level_count = bottom_up_step(graph, sol->distances, current_level);
+      next_level_count =
+          top_down_step(graph, sol->distances, current_level, &m_f);
     }
 
 #ifdef VERBOSE
