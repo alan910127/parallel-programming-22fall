@@ -2,6 +2,7 @@
 
 import getpass
 import subprocess
+import sys
 from pathlib import Path
 
 import pexpect
@@ -14,7 +15,7 @@ def available_hosts():
     for i in range(2, 11):
         if i == 9:
             continue
-        yield i
+        yield (f"pp{i}", f"192.168.202.{i}")
 
 
 def generate_key():
@@ -30,32 +31,46 @@ def add_hosts():
     print("Writing host configurations...")
 
     with sshcfg.open("a+") as file:
-        for i in available_hosts():
-            print(f"Host pp{i}", file=file)
-            print(f"\tHostName 192.168.202.{i}", file=file)
+        for hostname, ipaddr in available_hosts():
+            print(f"Host {hostname}", file=file)
+            print(f"\tHostName {ipaddr}", file=file)
             print(f"\tUser {username}", file=file)
-            print(f"\tIdentitiesOnly yes", file=file)
-            print(f"\tIdentityFile {KEY_PATH}", file=file)
             print(file=file)
 
 
 def copy_keys(password: str):
     public_key_path = KEY_PATH.with_suffix(".pub")
-    authorized_keys = SSHDIR / "authorized_keys"
 
-    for i in available_hosts():
-        print(f"Copying public key into pp{i}")
-
-        cmd = f"cat {public_key_path} | ssh -o StrictHostKeyChecking=accept-new pp{i} 'mkdir -p {SSHDIR} && cat >> {authorized_keys}'"
+    for hostname, _ in available_hosts():
+        print(f"Copying public key into {hostname}")
 
         connection = pexpect.spawn(
-            "/bin/bash",
-            ["-c", cmd],
+            f"ssh-copy-id -i {public_key_path} {hostname}",
             encoding="utf-8",
         )
 
-        connection.expect("[pP]assword: ")
-        connection.sendline(password)
+        ret = connection.expect(
+            [
+                pexpect.TIMEOUT,
+                "Are you sure you want to continue connecting",
+                "[pP]assword",
+            ]
+        )
+        if ret == 0:
+            print(f"Error connecting host {hostname}", file=sys.stderr)
+            continue
+        elif ret == 1:
+            connection.sendline("yes")
+
+            ret = connection.expect([pexpect.TIMEOUT, "[pP]assword"])
+
+            if ret == 0:
+                print(f"Error connecting host {hostname}", file=sys.stderr)
+                continue
+            elif ret == 1:
+                connection.sendline(password)
+        elif ret == 2:
+            connection.sendline(password)
 
         connection.expect(pexpect.EOF)
 
