@@ -5,6 +5,18 @@
 #include <time.h>
 #include <unistd.h>
 
+#define MASTER 0
+
+using rand_state_t = long;
+
+int fast_rand(rand_state_t* state) {
+  return (((*state = *state * 214013L + 2531011L) >> 16) & 0x7fff);
+}
+
+double get_random(rand_state_t* state) {
+  return (double)fast_rand(state) / 0x7fff;
+}
+
 int main(int argc, char** argv) {
   // --- DON'T TOUCH ---
   MPI_Init(&argc, &argv);
@@ -14,17 +26,43 @@ int main(int argc, char** argv) {
   int world_rank, world_size;
   // ---
 
-  // TODO: init MPI
-  MPI_Comm_rank(MPI_COMM_WORLD, int* rank);
+  // init MPI
+  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
-  if (world_rank > 0) {
-    // TODO: handle workers
-  } else if (world_rank == 0) {
-    // TODO: master
+  long long int num_tosses =
+      tosses / world_size + (world_rank < tosses % world_size ? 1 : 0);
+
+  rand_state_t state = 0xaf * world_rank;
+  long long int pi_count = 0;
+
+  for (long long int i = 0; i < num_tosses; ++i) {
+    double x = get_random(&state);
+    double y = get_random(&state);
+    if (x * x + y * y <= 1.0) {
+      ++pi_count;
+    }
   }
 
-  if (world_rank == 0) {
-    // TODO: process PI result
+  int tag = 0;
+  MPI_Status status;
+
+  if (world_rank > MASTER) {
+    // handle workers
+    MPI_Send(&pi_count, 1, MPI_LONG_LONG_INT, MASTER, tag, MPI_COMM_WORLD);
+  } else if (world_rank == MASTER) {
+    // master
+    for (int peer = 1; peer < world_size; ++peer) {
+      long long peer_count;
+      MPI_Recv(&peer_count, 1, MPI_LONG_LONG_INT, peer, tag, MPI_COMM_WORLD,
+               &status);
+      pi_count += peer_count;
+    }
+  }
+
+  if (world_rank == MASTER) {
+    // process PI result
+    pi_result = 4.0 * pi_count / tosses;
 
     // --- DON'T TOUCH ---
     double end_time = MPI_Wtime();
