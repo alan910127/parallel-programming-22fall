@@ -1,0 +1,5 @@
+#!/bin/sh
+
+num_hosts=$2
+
+mpirun -np ${num_hosts:-8} -npernode 1 --hostfile ../hosts.txt $1

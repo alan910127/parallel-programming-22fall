@@ -1,0 +1,5 @@
+#!/bin/sh
+
+mpicxx $1 -o $2
+
+parallel-scp -h ../hosts.txt $2 $2
