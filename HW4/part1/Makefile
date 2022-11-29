@@ -2,20 +2,35 @@ MPICXX := mpicxx
 MPIFLAGS := -O3
 
 MPIRUN := mpirun
-RUNARGS := -np 8 -npernode 1 --hostfile ../hosts.txt
+RUNARGS := --hostfile ../hosts.txt
+
+ifndef np
+	RUNARGS += -np 8
+else 
+	RUNARGS += -np ${np}
+endif
+
+ifdef npernode
+	RUNARGS += -npernode ${npernode}
+endif
+
+SRCS := $(wildcard *.cc)
+EXECUTABLES := $(patsubst %.cc, %, $(SRCS))
 
 ifeq (run, $(firstword $(MAKECMDGOALS)))
-	PROGRAM := $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))
+	PROGRAM := $(word 2, $(MAKECMDGOALS))
+	PROGRAM_ARGS := $(wordlist 3, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))
+	MAKECMDGOALS := run
 endif
 
 .PHONY: run clean
 
 run: ${PROGRAM}
-	${MPIRUN} ${RUNARGS} ${PROGRAM}
+	${MPIRUN} ${RUNARGS} ${PROGRAM} ${PROGRAM_ARGS}
 
-mpi_hello: hello.cc
+%: %.cc
 	${MPICXX} ${MPIFLAGS} $^ -o $@
 	parallel-scp -h ../hosts.txt $@ ~
 
 clean:
-	-rm mpi_hello
+	-rm ${EXECUTABLES}
