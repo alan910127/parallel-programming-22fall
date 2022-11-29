@@ -1,8 +1,7 @@
 #include <mpi.h>
 #include <stdio.h>
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   // Initialize the MPI environment. The two arguments to MPI Init are not
   // currently used by MPI implementations, but are there in case future
   // implementations might need the arguments.
@@ -10,7 +9,7 @@ int main(int argc, char **argv)
 
   // Get the number of processes
   int world_size;
-  MPI_Comm_size(MPI_COMM_WORLD , &world_size);
+  MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
   // Get the rank of the process
   int world_rank;
