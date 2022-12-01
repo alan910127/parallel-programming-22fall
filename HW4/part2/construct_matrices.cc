@@ -3,6 +3,25 @@
 
 #include "matrix.hh"
 
+constexpr int MAXLINE = 1 << 20;
+
+static inline char readchar() {
+  static char buf[MAXLINE], *p = buf, *q = buf;
+  if (p == q && (q = buf) + fread(buf, 1, MAXLINE, stdin)) == buf) return EOF;
+  return *p++;
+}
+
+static inline int next_int() {
+  int x = 0;
+  char c = readchar();
+  while (('0' > c || c > '9') && c != EOF) c = readchar();
+  while ('0' <= c && c <= '9') {
+    x = x * 10 + (c ^ '0');
+    c = readchar();
+  }
+  return x;
+}
+
 /// @brief Read size of matrix a and matrix b (n, m, l) and data of matrices
 /// from stdin
 /// @param n_ptr pointer to n
@@ -22,20 +41,22 @@ void construct_matrices(int *n_ptr, int *m_ptr, int *l_ptr, int **a_mat_ptr,
   int_ref n = *n_ptr, m = *m_ptr, l = *l_ptr;
   mat_ref a_mat = *a_mat_ptr, b_mat = *b_mat_ptr;
 
-  scanf("%d %d %d", n_ptr, m_ptr, l_ptr);
+  n = next_int();
+  m = next_int();
+  l = next_int();
 
   a_mat = new int[n * m];
   b_mat = new int[m * l];
 
   for (int i = 0; i < n; ++i) {
     for (int j = 0; j < m; ++j) {
-      scanf("%d", &a_mat[i * m + j]);
+      a_mat[i * m + j] = next_int();
     }
   }
 
   for (int i = 0; i < m; ++i) {
     for (int j = 0; j < l; ++j) {
-      scanf("%d", &b_mat[i * l + j]);
+      b_mat[i * l + j] = next_int();
     }
   }
 }
