@@ -3,21 +3,13 @@
 
 #include "matrix.hh"
 
-constexpr int MAXLINE = 1 << 20;
-
-static inline char readchar() {
-  static char buf[MAXLINE], *p = buf, *q = buf;
-  if (p == q && (q = buf) + fread(buf, 1, MAXLINE, stdin)) == buf) return EOF;
-  return *p++;
-}
-
 static inline int next_int() {
   int x = 0;
-  char c = readchar();
-  while (('0' > c || c > '9') && c != EOF) c = readchar();
+  char c = getchar();
+  while (('0' > c || c > '9') && c != EOF) c = getchar();
   while ('0' <= c && c <= '9') {
-    x = x * 10 + (c ^ '0');
-    c = readchar();
+    x = x * 10 + (c - '0');
+    c = getchar();
   }
   return x;
 }
