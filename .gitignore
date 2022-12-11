@@ -2,8 +2,8 @@
 *.zip
 url.txt
 
-# Created by https://www.toptal.com/developers/gitignore/api/c,c++,linux,visualstudiocode
-# Edit at https://www.toptal.com/developers/gitignore?templates=c,c++,linux,visualstudiocode
+# Created by https://www.toptal.com/developers/gitignore/api/c,c++,linux,visualstudiocode,cuda
+# Edit at https://www.toptal.com/developers/gitignore?templates=c,c++,linux,visualstudiocode,cuda
 
 ### C ###
 # Prerequisites
@@ -78,6 +78,14 @@ dkms.conf
 
 # Executables
 
+### CUDA ###
+*.i
+*.ii
+*.gpu
+*.ptx
+*.cubin
+*.fatbin
+
 ### Linux ###
 *~
 
@@ -112,4 +120,4 @@ dkms.conf
 .history
 .ionide
 
-# End of https://www.toptal.com/developers/gitignore/api/c,c++,linux,visualstudiocode
+# End of https://www.toptal.com/developers/gitignore/api/c,c++,linux,visualstudiocode,cuda
