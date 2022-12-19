@@ -21,8 +21,8 @@ __device__ int mandel(float c_re, float c_im, int count) {
 }
 
 __global__ void mandelKernel(float lowerX, float lowerY, float stepX,
-                             float stepY, int maxIteration, int resX,
-                             int* dest) {
+                             float stepY, int maxIteration, size_t pitch,
+                             int resX, int resY, int* dest) {
   // To avoid error caused by the floating number, use the following pseudo code
   //
   // float x = lowerX + thisX * stepX;
@@ -31,12 +31,14 @@ __global__ void mandelKernel(float lowerX, float lowerY, float stepX,
   int thisX = (blockIdx.x * blockDim.x + threadIdx.x) * GROUP_SIZE;
   int thisY = (blockIdx.y * blockDim.y + threadIdx.y) * GROUP_SIZE;
 
-  for (int currentX = thisX; currentX < thisX + GROUP_SIZE; ++currentX) {
-    for (int currentY = thisY; currentY < thisY + GROUP_SIZE; ++currentY) {
-      float x = lowerX + currentX * stepX;
-      float y = lowerY + currentY * stepY;
+  for (int currentY = thisY; currentY < thisY + GROUP_SIZE; ++currentY) {
+    if (currentY >= resY) break;
+    float y = lowerY + currentY * stepY;
+    int* row = (int*)((char*)dest + currentY * pitch);
 
-      float* row = (float*)((char*)dest + currentY * pitch);
+    for (int currentX = thisX; currentX < thisX + GROUP_SIZE; ++currentX) {
+      if (currentX >= resX) continue;
+      float x = lowerX + currentX * stepX;
       row[currentX] = mandel(x, y, maxIteration);
     }
   }
@@ -49,17 +51,23 @@ void hostFE(float upperX, float upperY, float lowerX, float lowerY, int* img,
   float stepY = (upperY - lowerY) / resY;
 
   int rowSize = sizeof(int) * resX;
-  int sizeInBytes = rowSize * resY;
+  int sizeInBytes = sizeof(int) * resX * resY;
 
   int* deviceImg;
   size_t pitch;
   cudaMallocPitch((void**)&deviceImg, &pitch, rowSize, resY);
 
   dim3 blockShape(BLOCK_SIZE, BLOCK_SIZE);
-  dim3 gridShape(resX / (blockShape.x * GROUP_SIZE),
-                 resY / (blockShape.y * GROUP_SIZE));
-  mandelKernel<<<gridShape, blockShape>>>(
-      lowerX, lowerY, stepX, stepY, maxIterations, resX, pitch, deviceImg);
+
+  int numBlocksX = ceil(resX / float(blockShape.x * GROUP_SIZE));
+  int numBlocksY = ceil(resX / float(blockShape.x * GROUP_SIZE));
+
+  dim3 gridShape(numBlocksX, numBlocksY);
+  mandelKernel<<<gridShape, blockShape>>>(lowerX, lowerY, stepX, stepY,
+                                          maxIterations, pitch, resX, resY,
+                                          deviceImg);
+
+  cudaDeviceSynchronize();
 
   int* hostImg;
   cudaHostAlloc((void**)&hostImg, sizeInBytes, cudaHostAllocDefault);
