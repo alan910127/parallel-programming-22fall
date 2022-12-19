@@ -20,7 +20,7 @@ __device__ int mandel(float c_re, float c_im, int count) {
 }
 
 __global__ void mandelKernel(float lowerX, float lowerY, float stepX,
-                             float stepY, int maxIteration, int resX,
+                             float stepY, int maxIteration, size_t pitch,
                              int* dest) {
   // To avoid error caused by the floating number, use the following pseudo code
   //
@@ -33,7 +33,7 @@ __global__ void mandelKernel(float lowerX, float lowerY, float stepX,
   float x = lowerX + thisX * stepX;
   float y = lowerY + thisY * stepY;
 
-  float* row = (float*)((char*)dest + thisY * pitch);
+  int* row = (int*)((char*)dest + thisY * pitch);
   row[thisX] = mandel(x, y, maxIteration);
 }
 
@@ -52,8 +52,10 @@ void hostFE(float upperX, float upperY, float lowerX, float lowerY, int* img,
 
   dim3 blockShape(BLOCK_SIZE, BLOCK_SIZE);
   dim3 gridShape(resX / blockShape.x, resY / blockShape.y);
-  mandelKernel<<<gridShape, blockShape>>>(
-      lowerX, lowerY, stepX, stepY, maxIterations, resX, pitch, deviceImg);
+  mandelKernel<<<gridShape, blockShape>>>(lowerX, lowerY, stepX, stepY,
+                                          maxIterations, pitch, deviceImg);
+
+  cudaDeviceSynchronize();
 
   int* hostImg;
   cudaHostAlloc((void**)&hostImg, sizeInBytes, cudaHostAllocDefault);

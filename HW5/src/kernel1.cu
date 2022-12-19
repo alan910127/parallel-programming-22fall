@@ -53,6 +53,8 @@ void hostFE(float upperX, float upperY, float lowerX, float lowerY, int* img,
   mandelKernel<<<gridShape, blockShape>>>(lowerX, lowerY, stepX, stepY,
                                           maxIterations, resX, deviceImg);
 
+  cudaDeviceSynchronize();
+
   int* hostImg = (int*)malloc(sizeInBytes);
   cudaMemcpy(hostImg, deviceImg, sizeInBytes, cudaMemcpyDeviceToHost);
   memcpy(img, hostImg, sizeInBytes);
