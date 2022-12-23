@@ -55,7 +55,7 @@ void hostFE(float upperX, float upperY, float lowerX, float lowerY, int* img,
   cudaHostGetDevicePointer((void**)&deviceImg, img, 0);
 
   dim3 blockShape(BLOCK_SIZE_X, BLOCK_SIZE_Y);
-  dim3 gridShape(qresX / blockShape.x, resY / blockShape.y);
+  dim3 gridShape(resX / blockShape.x, resY / blockShape.y);
   mandelKernel<<<gridShape, blockShape>>>(lowerX, lowerY, stepX, stepY,
                                           maxIterations, resX, deviceImg);
 
