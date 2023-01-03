@@ -5,3 +5,4 @@
 - Homework 3: [`OpenMP` Programming](HW3)
 - Homework 4: [`MPI` Programming](HW4)
 - Homework 5: [`CUDA` Programming](HW5)
+- Homework 6: [`OpenCL` Programming](HW6)
