@@ -5,44 +5,48 @@
 
 #include "helper.h"
 
-static inline cl_command_queue createCommandQueue(cl_context *context,
-                                                  cl_device_id *device);
-static inline cl_mem createBuffer(cl_context *context, cl_mem_flags flags,
-                                  size_t size);
-static inline cl_kernel createKernel(cl_program *program,
-                                     const char *kernelName);
+#define GROUP_SIZE 16
 
-static inline void copyToDevice(cl_command_queue *commandQueue,
-                                cl_mem *memObject, size_t size, void *hostPtr);
-static inline void copyToHost(cl_command_queue *commandQueue, cl_mem *memObject,
-                              size_t size, void *hostPtr);
+#if 1
+#undef CHECK
+#define CHECK(status, cmd) /* skip */
+#endif
 
-static inline void launchKernel(cl_command_queue *commandQueue,
-                                cl_kernel *kernel, const size_t *globalWorksize,
-                                const size_t *localWorksize);
-
-static inline void releaseCommandQueue(cl_command_queue *commandQueue);
-static inline void releaseMemObject(cl_mem *memObject);
-static inline void releaseKernel(cl_kernel *kernel);
+static inline int roundUp(int number, int base) {
+  return ((number + base - 1) / base) * base;
+}
 
 void hostFE(int filterWidth, float *filter, int imageHeight, int imageWidth,
             float *inputImage, float *outputImage, cl_device_id *device,
             cl_context *context, cl_program *program) {
   cl_int status;
+
   int filterSize = filterWidth * filterWidth * sizeof(float);
   int imageSize = imageWidth * imageHeight * sizeof(float);
 
-  cl_command_queue commandQueue = createCommandQueue(context, device);
+  cl_command_queue commandQueue =
+      clCreateCommandQueue(*context, *device, 0, &status);
+  CHECK(status, "clCreateCommandQueue");
 
-  cl_mem inputImageObject = createBuffer(context, CL_MEM_READ_ONLY, imageSize);
+  cl_mem inputImageObject =
+      clCreateBuffer(*context, CL_MEM_READ_ONLY, imageSize, NULL, &status);
+  CHECK(status, "clCreateBuffer");
   cl_mem outputImageObject =
-      createBuffer(context, CL_MEM_WRITE_ONLY, imageSize);
-  cl_mem filterObject = createBuffer(context, CL_MEM_READ_ONLY, filterSize);
+      clCreateBuffer(*context, CL_MEM_WRITE_ONLY, imageSize, NULL, &status);
+  CHECK(status, "clCreateBuffer");
+  cl_mem filterObject =
+      clCreateBuffer(*context, CL_MEM_READ_ONLY, filterSize, NULL, &status);
+  CHECK(status, "clCreateBuffer");
 
-  copyToDevice(&commandQueue, &inputImageObject, imageSize, (void *)inputImage);
-  copyToDevice(&commandQueue, &filterObject, filterSize, (void *)filter);
+  status = clEnqueueWriteBuffer(commandQueue, inputImageObject, CL_TRUE, 0,
+                                imageSize, (void *)inputImage, 0, NULL, NULL);
+  CHECK(status, "clEnqueueWriteBuffer");
+  status = clEnqueueWriteBuffer(commandQueue, filterObject, CL_TRUE, 0,
+                                filterSize, (void *)filter, 0, NULL, NULL);
+  CHECK(status, "clEnqueueWriteBuffer");
 
-  cl_kernel kernel = createKernel(program, "convolution");
+  cl_kernel kernel = clCreateKernel(*program, "convolution", &status);
+  CHECK(status, "clCreateKernel");
 
   clSetKernelArg(kernel, 0, sizeof(cl_int), (void *)&imageWidth);
   clSetKernelArg(kernel, 1, sizeof(cl_int), (void *)&imageHeight);
@@ -51,79 +55,29 @@ void hostFE(int filterWidth, float *filter, int imageHeight, int imageWidth,
   clSetKernelArg(kernel, 4, sizeof(cl_int), (void *)&filterWidth);
   clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&filterObject);
 
-  // TODO: find out better work size
-  size_t globalWorksize[] = {imageWidth, imageHeight};
-  size_t localWorksize[] = {25, 25};
-  launchKernel(&commandQueue, &kernel, globalWorksize, localWorksize);
+  int roundedWidth = roundUp(imageWidth, GROUP_SIZE);
+  int roundedHeight = roundUp(imageHeight, GROUP_SIZE);
 
-  copyToHost(&commandQueue, &outputImageObject, imageSize, (void *)outputImage);
+  size_t globalWorksize[] = {roundedWidth, roundedHeight};
+  size_t localWorksize[] = {GROUP_SIZE, GROUP_SIZE};
 
-  releaseKernel(&kernel);
-  releaseMemObject(&filterObject);
-  releaseMemObject(&inputImageObject);
-  releaseMemObject(&outputImageObject);
-  releaseCommandQueue(&commandQueue);
-}
-
-static inline cl_command_queue createCommandQueue(cl_context *context,
-                                                  cl_device_id *device) {
-  cl_int status;
-  cl_command_queue commandQueue =
-      clCreateCommandQueue(*context, *device, 0, &status);
-  CHECK(status, "clCreateCommandQueue");
-  return commandQueue;
-}
-
-static inline cl_mem createBuffer(cl_context *context, cl_mem_flags flags,
-                                  size_t size) {
-  cl_int status;
-  cl_mem memObject = clCreateBuffer(*context, flags, size, NULL, &status);
-  CHECK(status, "clCreateBuffer");
-  return memObject;
-}
-
-static inline cl_kernel createKernel(cl_program *program,
-                                     const char *kernelName) {
-  cl_int status;
-  cl_kernel kernel = clCreateKernel(*program, kernelName, &status);
-  CHECK(status, "clCreateKernel");
-  return kernel;
-}
-
-static inline void copyToDevice(cl_command_queue *commandQueue,
-                                cl_mem *memObject, size_t size, void *hostPtr) {
-  cl_int status = clEnqueueWriteBuffer(*commandQueue, *memObject, CL_TRUE, 0,
-                                       size, hostPtr, 0, NULL, NULL);
-  CHECK(status, "clEnqueueWriteBuffer");
-}
-
-static inline copyToHost(cl_command_queue *commandQueue, cl_mem *memObject,
-                         size_t size, void *hostPtr) {
-  cl_int status = clEnqueueReadBuffer(*commandQueue, *memObject, CL_TRUE, 0,
-                                      size, hostPtr, NULL, NULL, NULL);
-  CHECK(status, "clEnqueueReadBuffer");
-}
-
-static inline void launchKernel(cl_command_queue *commandQueue,
-                                cl_kernel *kernel, const size_t *globalWorksize,
-                                const size_t *localWorksize) {
-  cl_int status =
-      clEnqueueNDRangeKernel(*commandQueue, *kernel, 2, 0, globalWorksize,
-                             localWorksize, 0, NULL, NULL);
+  status = clEnqueueNDRangeKernel(commandQueue, kernel, 2, NULL, globalWorksize,
+                                  localWorksize, 0, NULL, NULL);
   CHECK(status, "clEnqueueNDRangeKernel");
-}
 
-static inline void releaseCommandQueue(cl_command_queue *commandQueue) {
-  cl_int status = clReleaseCommandQueue(*commandQueue);
-  CHECK(status, "clReleaseCommandQueue");
-}
+  status =
+      clEnqueueReadBuffer(commandQueue, outputImageObject, CL_TRUE, 0,
+                          imageSize, (void *)outputImage, NULL, NULL, NULL);
+  CHECK(status, "clEnqueueReadBuffer");
 
-static inline void releaseMemObject(cl_mem *memObject) {
-  cl_int status = clReleaseMemObject(*memObject);
-  CHECK(status, "clReleaseMemObject");
-}
-
-static inline void releaseKernel(cl_kernel *kernel) {
-  cl_int status = clReleaseKernel(*kernel);
-  CHECK(status, "clReleaseKernel");
+  // status = clReleaseKernel(kernel);
+  // CHECK(status, "clReleaseKernel");
+  // status = clReleaseMemObject(filterObject);
+  // CHECK(status, "clReleaseMemObject");
+  // status = clReleaseMemObject(inputImageObject);
+  // CHECK(status, "clReleaseMemObject");
+  // status = clReleaseMemObject(outputImageObject);
+  // CHECK(status, "clReleaseMemObject");
+  // status = clReleaseCommandQueue(*commandQueue);
+  // CHECK(status, "clReleaseCommandQueue");
 }
