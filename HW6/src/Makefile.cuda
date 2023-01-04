@@ -1,0 +1,27 @@
+APP_NAME = cudaconv
+
+default: $(APP_NAME)
+
+NVCC = nvcc
+CXX = g++
+CXXFLAGS = -O3 -lOpenCL -m64 -ffloat-store -w -g
+
+CUDA_LINK_FLAGS =  -rdc=true -gencode=arch=compute_61,code=sm_61 -Xcompiler '-fPIC' 
+CUDA_COMPILE_FLAGS = --device-c -gencode=arch=compute_61,code=sm_61 -Xcompiler '-fPIC' -g -O3
+
+OBJS = cudaobj/main.o cudaobj/bmpfuncs.o cudaobj/hostFE.o cudaobj/serialConv.o cudaobj/helper.o
+
+$(APP_NAME): $(OBJS)
+	$(NVCC) $(CUDA_LINK_FLAGS) -o $@ $(OBJS) -lOpenCL
+
+cudaobj:
+	mkdir -p cudaobj
+
+cudaobj/%.o: %.c cudaobj
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+cudaobj/hostFE.o: kernel.cu hostFE.h
+	$(NVCC) $(CUDA_COMPILE_FLAGS) -c kernel.cu -o $@
+
+clean:
+	rm -f $(APP_NAME) cudaobj/*.o output.bmp ref.bmp
