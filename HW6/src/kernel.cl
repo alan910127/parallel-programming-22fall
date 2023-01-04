@@ -1,5 +1,5 @@
 __kernel void convolution(int imageWidth, int imageHeight,
-                          __constant float* inputImage,
+                          __global float* inputImage,
                           __global float* outputImage, int filterWidth,
                           __constant float* filter) {
   int ix = get_global_id(0);
